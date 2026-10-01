@@ -1,49 +1,46 @@
 # FastFood POS + Bookkeeping System
 
-This repository contains a starter monorepo for a multi-location fast-food POS system with inventory control, accounting, and reporting.
+## Overview
 
-## Structure
+A monorepo starter for a multi-location fast-food POS and bookkeeping platform.
 
-- `backend/` - FastAPI backend
-- `frontend/` - Next.js POS UI
-- `docker-compose.yml` - local orchestration for Postgres + Redis + backend + frontend
+## Stack
 
-## Quick start
+- Backend: FastAPI
+- Frontend: Next.js
+- Database: PostgreSQL
+- Cache: Redis
+- Containerization: Docker Compose
 
-### Backend
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
-
-### Frontend
+## Run locally
 
 ```bash
-cd frontend
-npm install
-npm run dev
+docker-compose up --build
 ```
+
+## Health check
+
+```bash
+curl http://localhost:8000/health
+```
+
+## Environment variables
+
+Create a `.env` file with:
+
+```bash
+SECRET_KEY=your-secret-key
+ENVIRONMENT=development
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+## Project structure
+
+- `backend/` — FastAPI API
+- `frontend/` — POS dashboard
+- `db/` — SQL schema and migration folder
+- `docker-compose.yml` — local environment
 
 ## Notes
 
-This is an implementation starter. It includes:
-- FastAPI app skeleton
-- JWT auth example
-- order flow scaffolding
-- reporting endpoints
-- shift-close reconciliation service
-- initial database models
-- Next.js POS dashboard shell
-
-## Production next steps
-
-- Add Alembic migrations
-- Add full SQLAlchemy models for all tables
-- Add database repositories and service layer for all entities
-- Add RBAC enforcement per location
-- Add file uploads and receipt printing integration
-- Add inventory receiving, stock transfer, and financial reconciliation flows
+This is a working starter implementation with the core operational flows for orders, inventory, accounting, and manager reporting.
