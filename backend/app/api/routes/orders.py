@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.auth.deps import get_current_user
+from app.services.order_service import OrderService
 
 router = APIRouter(prefix="/api/v1/orders", tags=["orders"])
 
@@ -42,27 +43,8 @@ async def create_order(payload: CreateOrderInput, current_user=Depends(get_curre
     if "cashier" not in current_user.get("roles", []):
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    subtotal = Decimal("0")
-    for item in payload.items:
-        subtotal += Decimal("12.50") * Decimal(item.quantity)
-
-    tax_total = subtotal * Decimal("0.10")
-    discount_total = Decimal("0")
-    total_amount = subtotal + tax_total - discount_total
-
-    order = {
-        "id": str(uuid4()),
-        "location_id": payload.location_id,
-        "order_type": payload.order_type,
-        "status": "open",
-        "subtotal": str(subtotal),
-        "tax_total": str(tax_total),
-        "discount_total": str(discount_total),
-        "total_amount": str(total_amount),
-        "payment_status": "unpaid",
-        "items": payload.items,
-    }
-
+    service = OrderService()
+    order = service.create_order(payload.model_dump())
     return {"success": True, "data": order}
 
 
@@ -71,12 +53,19 @@ async def finalize_order(order_id: str, payload: PaymentInput, current_user=Depe
     if "cashier" not in current_user.get("roles", []):
         raise HTTPException(status_code=403, detail="Forbidden")
 
-    return {
-        "success": True,
-        "data": {
-            "order_id": order_id,
-            "payment_method": payload.payment_method,
-            "amount": str(payload.amount),
-            "status": "paid",
-        },
+    service = OrderService()
+    derived_order = {
+        "id": order_id,
+        "order_number": f"ORD-{uuid4().hex[:8].upper()}",
+        "location_id": "loc-001",
+        "total_amount": str(payload.amount),
+        "tax_total": "0.00",
+        "items": [{"menu_item_id": "menu-001", "quantity": 1}],
     }
+
+    try:
+        result = service.finalize_order(derived_order, payload.payment_method, payload.amount)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    return {"success": True, "data": result}
