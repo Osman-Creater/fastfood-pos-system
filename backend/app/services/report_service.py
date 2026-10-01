@@ -28,15 +28,15 @@ class ReportService:
             "report_date": report_date.date().isoformat(),
             "gross_sales": str(total_gross.quantize(Decimal("0.01"))),
             "tax_total": str(total_tax.quantize(Decimal("0.01"))),
-            "discount_total": "25.00",
-            "refund_total": "45.00",
+            "discount_total": "0.00",
+            "refund_total": "0.00",
             "net_sales": str(net_sales.quantize(Decimal("0.01"))),
             "order_count": order_count,
             "average_order_value": str(avg_order_value.quantize(Decimal("0.01"))),
-            "cash_sales": "1120.00",
-            "card_sales": "830.50",
-            "wallet_sales": "210.00",
-            "delivery_platform_sales": "290.00",
+            "cash_sales": "0.00",
+            "card_sales": "0.00",
+            "wallet_sales": "0.00",
+            "delivery_platform_sales": "0.00",
         }
 
     async def get_food_cost_report(self, location_id: str, start_date: datetime, end_date: datetime):
@@ -47,8 +47,8 @@ class ReportService:
             {"name": "Soft Drink", "sold": 82, "food_cost": "41.00", "sales": "225.50"},
         ]
 
-        total_food_cost = sum(Decimal(item["food_cost"]) for item in items)
-        total_sales = sum(Decimal(item["sales"]) for item in items)
+        total_food_cost = sum(Decimal(str(item["food_cost"])) for item in items)
+        total_sales = sum(Decimal(str(item["sales"])) for item in items)
 
         return {
             "location_id": location_id,
@@ -66,7 +66,7 @@ class ReportService:
 
         revenue_total = Decimal(revenue["food_sales"]) + Decimal(revenue["beverage_sales"])
         cogs_total = Decimal(cost_of_goods_sold["food_cost"])
-        expense_total = sum(Decimal(v) for v in operating_expenses.values())
+        expense_total = sum(Decimal(str(v)) for v in operating_expenses.values())
         net_profit = revenue_total - cogs_total - expense_total
 
         return {
