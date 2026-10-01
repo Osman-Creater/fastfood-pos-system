@@ -1,54 +1,72 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from datetime import datetime
+from uuid import uuid4
+
+from app.seed_data import get_menu_item_by_id
+from app.services.inventory_service import InventoryService
+from app.services.journal_service import JournalService
 
 
-class JournalService:
-    def create_sale_journal(self, order: dict, payment_method: str, payment_amount: Decimal, tax_total: Decimal) -> dict:
-        if payment_method == "cash":
-            cash_account = "1000"
-        elif payment_method == "card":
-            cash_account = "1020"
-        elif payment_method == "delivery_platform":
-            cash_account = "1030"
-        else:
-            cash_account = "1000"
+class OrderService:
+    def __init__(self):
+        self.inventory_service = InventoryService()
+        self.journal_service = JournalService()
 
-        food_sales = Decimal(order["total_amount"]) - tax_total
+    def create_order(self, payload: dict) -> dict:
+        subtotal = Decimal("0")
+        tax_rate = Decimal("0.10")
 
-        return {
-            "entry_type": "sale",
-            "reference_type": "order",
-            "reference_id": order["id"],
-            "description": f"Sale for order {order['order_number']}",
-            "entry_date": datetime.utcnow().isoformat(),
-            "lines": [
-                {"account_code": cash_account, "debit": str(payment_amount), "credit": "0.00"},
-                {"account_code": "3000", "debit": "0.00", "credit": str(food_sales)},
-                {"account_code": "2000", "debit": "0.00", "credit": str(tax_total)},
-            ],
+        for item in payload["items"]:
+            menu_item = get_menu_item_by_id(item["menu_item_id"], payload["location_id"])
+            unit_price = Decimal(str(menu_item["unit_price"])) if menu_item else Decimal("12.50")
+            subtotal += unit_price * Decimal(str(item.get("quantity", 1)))
+
+        tax_total = subtotal * tax_rate
+        discount_total = Decimal("0")
+        total_amount = subtotal + tax_total - discount_total
+
+        order = {
+            "id": str(uuid4()),
+            "location_id": payload["location_id"],
+            "terminal_id": payload.get("terminal_id"),
+            "shift_id": payload.get("shift_id"),
+            "cashier_user_id": payload["cashier_user_id"],
+            "customer_id": payload.get("customer_id"),
+            "order_number": f"ORD-{uuid4().hex[:8].upper()}",
+            "order_type": payload.get("order_type", "dine_in"),
+            "status": "open",
+            "subtotal": str(subtotal.quantize(Decimal("0.01"))),
+            "tax_total": str(tax_total.quantize(Decimal("0.01"))),
+            "discount_total": str(discount_total.quantize(Decimal("0.01"))),
+            "total_amount": str(total_amount.quantize(Decimal("0.01"))),
+            "payment_status": "unpaid",
+            "items": payload["items"],
         }
+        return order
 
-    def create_shift_reconciliation_journal(self, shift: dict, over_short: Decimal) -> dict:
-        if over_short >= 0:
-            lines = [
-                {"account_code": "1000", "debit": str(over_short), "credit": "0.00"},
-                {"account_code": "6000", "debit": "0.00", "credit": str(over_short)},
-            ]
-            description = "Cash overage reconciliation"
-        else:
-            lines = [
-                {"account_code": "6000", "debit": str(abs(over_short)), "credit": "0.00"},
-                {"account_code": "1000", "debit": "0.00", "credit": str(abs(over_short))},
-            ]
-            description = "Cash shortage reconciliation"
+    def finalize_order(self, order: dict, payment_method: str, payment_amount: Decimal) -> dict:
+        if payment_amount < Decimal(str(order["total_amount"])):
+            raise ValueError("Insufficient payment amount")
 
+        inventory_tx = self.inventory_service.deduct_for_order(order)
+        journal = self.journal_service.create_sale_journal(
+            order=order,
+            payment_method=payment_method,
+            payment_amount=payment_amount,
+            tax_total=Decimal(str(order.get("tax_total", 0))),
+        )
+
+        order["status"] = "completed"
+        order["payment_status"] = "paid"
         return {
-            "entry_type": "shift_reconciliation",
-            "reference_type": "shift",
-            "reference_id": shift["id"],
-            "description": description,
-            "entry_date": datetime.utcnow().isoformat(),
-            "lines": lines,
+            "order": order,
+            "payment": {
+                "order_id": order["id"],
+                "payment_method": payment_method,
+                "amount": str(payment_amount.quantize(Decimal("0.01"))),
+                "status": "paid",
+            },
+            "inventory_transactions": inventory_tx,
+            "journal": journal,
         }

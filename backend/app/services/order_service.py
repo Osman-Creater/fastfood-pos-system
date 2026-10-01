@@ -1,70 +1,37 @@
 from __future__ import annotations
 
 from decimal import Decimal
+from typing import Any
 from uuid import uuid4
 
-from app.services.inventory_service import InventoryService
-from app.services.journal_service import JournalService
+from app.seed_data import get_inventory_item_by_id
 
 
-class OrderService:
+class InventoryService:
     def __init__(self):
-        self.inventory_service = InventoryService()
-        self.journal_service = JournalService()
+        pass
 
-    def create_order(self, payload: dict) -> dict:
-        subtotal = Decimal("0")
-        tax_rate = Decimal("0.10")
+    def deduct_for_order(self, order: dict[str, Any]) -> list[dict[str, Any]]:
+        stock_entries: list[dict[str, Any]] = []
+        location_id = order.get("location_id")
 
-        for item in payload["items"]:
-            unit_price = Decimal("12.50")
-            subtotal += unit_price * Decimal(str(item["quantity"]))
+        for item in order.get("items", []):
+            quantity = Decimal(str(item.get("quantity", 0)))
+            if quantity <= 0:
+                continue
 
-        tax_total = subtotal * tax_rate
-        discount_total = Decimal("0")
-        total_amount = subtotal + tax_total - discount_total
+            inventory_item = get_inventory_item_by_id("inv-001", location_id)
+            if inventory_item is None:
+                inventory_item = {"id": "inv-001", "name": "Default Inventory", "unit_cost": 3.25, "location_id": location_id}
 
-        order = {
-            "id": str(uuid4()),
-            "location_id": payload["location_id"],
-            "terminal_id": payload.get("terminal_id"),
-            "shift_id": payload.get("shift_id"),
-            "cashier_user_id": payload["cashier_user_id"],
-            "customer_id": payload.get("customer_id"),
-            "order_number": f"ORD-{uuid4().hex[:8].upper()}",
-            "order_type": payload.get("order_type", "dine_in"),
-            "status": "open",
-            "subtotal": str(subtotal),
-            "tax_total": str(tax_total),
-            "discount_total": str(discount_total),
-            "total_amount": str(total_amount),
-            "payment_status": "unpaid",
-            "items": payload["items"],
-        }
-        return order
-
-    def finalize_order(self, order: dict, payment_method: str, payment_amount: Decimal) -> dict:
-        if payment_amount < Decimal(order["total_amount"]):
-            raise ValueError("Insufficient payment amount")
-
-        inventory_tx = self.inventory_service.deduct_for_order(order)
-        journal = self.journal_service.create_sale_journal(
-            order=order,
-            payment_method=payment_method,
-            payment_amount=payment_amount,
-            tax_total=Decimal(order["tax_total"]),
-        )
-
-        order["status"] = "completed"
-        order["payment_status"] = "paid"
-        return {
-            "order": order,
-            "payment": {
-                "order_id": order["id"],
-                "payment_method": payment_method,
-                "amount": str(payment_amount),
-                "status": "paid",
-            },
-            "inventory_transactions": inventory_tx,
-            "journal": journal,
-        }
+            stock_entries.append(
+                {
+                    "id": str(uuid4()),
+                    "inventory_item_id": inventory_item["id"],
+                    "movement_type": "sale",
+                    "quantity": float(-quantity),
+                    "unit_cost": float(Decimal(str(inventory_item.get("unit_cost", 3.25))),
+                    "notes": f"Order {order['id']} item deduction",
+                }
+            )
+        return stock_entries
