@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.app.repositories.base_repository import BaseRepository
+from .base_repository import BaseRepository
 
 
 class OrderRepository(BaseRepository[Any]):
@@ -23,3 +23,12 @@ class PaymentRepository(BaseRepository[Any]):
 class ShiftRepository(BaseRepository[Any]):
     async def get_open_shift_for_user(self, user_id: str) -> Any | None:
         return None
+
+
+__all__ = [
+    "BaseRepository",
+    "OrderRepository",
+    "InventoryRepository",
+    "PaymentRepository",
+    "ShiftRepository",
+]
