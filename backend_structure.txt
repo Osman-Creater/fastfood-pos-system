@@ -1,0 +1,8 @@
+# FastAPI backend project skeleton
+
+requirements.txt
+README.md
+app/__init__.py
+app/config.py
+app/db.py
+app/main.py
