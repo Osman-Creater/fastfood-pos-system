@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.admin import router as admin_router
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.food_cost import router as food_cost_router
@@ -34,12 +35,11 @@ app.include_router(shifts_router, prefix="/api/v1")
 app.include_router(dashboard_router, prefix="/api/v1")
 app.include_router(manager_router, prefix="/api/v1")
 app.include_router(admin_router, prefix="/api/v1")
-
+app.include_router(analytics_router, prefix="/api/v1")
 
 @app.get("/health")
 def health_check():
     return {"status": "ok", "service": "fastfood-pos-api"}
-
 
 @app.get("/")
 def root():
