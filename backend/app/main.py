@@ -1,9 +1,8 @@
-from __future__ import annotations
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.routes.auth import router as auth_router
+from app.api.routes.dashboard import router as dashboard_router
 from app.api.routes.orders import router as orders_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.shifts import router as shifts_router
@@ -26,6 +25,7 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(orders_router, prefix="/api/v1")
 app.include_router(reports_router, prefix="/api/v1")
 app.include_router(shifts_router, prefix="/api/v1")
+app.include_router(dashboard_router, prefix="/api/v1")
 
 
 @app.get("/health")
